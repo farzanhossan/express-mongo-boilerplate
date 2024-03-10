@@ -5,6 +5,7 @@ import userController from '../modules/user/user.controller';
 const userRouter = express.Router();
 
 // user routes
+userRouter.get('/test', userController.test);
 userRouter.get('/:id', verifyToken, userController.getById);
 userRouter.patch('/:id', verifyToken, userController.updateById);
 userRouter.delete('/:id', verifyToken, userController.deleteById);

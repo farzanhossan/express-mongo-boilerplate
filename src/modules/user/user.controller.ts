@@ -195,6 +195,17 @@ const userController = {
       return responseData({ req, res, error });
     }
   },
+  test: async (req: Request, res: Response) => {
+    try {
+      return res.send({
+        success: true,
+        message: 'Test',
+        data: await userService.test(),
+      });
+    } catch (error) {
+      return responseData({ req, res, error });
+    }
+  },
   // resetPassword: async (req: Request, res: Response) => {
   //   try {
   //     const otpData: any = await Otp.findOne({
