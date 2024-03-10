@@ -1,0 +1,88 @@
+name: Impactment API Prod Deployment
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Logging to docker
+        run: docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}}
+
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag ${{secrets.DOCKER_USER}}/hello_world_api:latest
+
+      - name: Docker Push
+        run: docker push ${{secrets.DOCKER_USER}}/hello_world_api:latest
+
+  Deploy:
+    needs: Build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Logging to docker
+        run: docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}}
+
+      - name: Deploy To Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "Logging to docker hub"
+            docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}} 
+
+            echo "Stopping previous build"
+            docker stop hello_world_api
+
+            echo "Removing previous build"
+            docker rm hello_world_api
+
+            echo "Removing old image from local"
+            docker rmi ${{secrets.DOCKER_USER}}/hello_world_api:latest
+
+            echo "Pulling latest image from docker hub"
+            docker pull ${{secrets.DOCKER_USER}}/hello_world_api:latest
+
+  Run:
+    needs: Deploy
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Logging to docker
+        run: docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}}
+
+      - name: Deploy To Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "Logging to docker hub"
+            docker login -u ${{secrets.DOCKER_USER}} -p ${{secrets.DOCKER_PASSWORD}} 
+
+            echo "Starting latest build"
+            docker run -e NODE_ENV=production -d \
+              --restart always --network host \
+              -dit --name hello_world_api \
+              -p 5050:5050 \
+              --name hello_world_api \
+              ${{secrets.DOCKER_USER}}/hello_world_api:latest
+
+            echo "Deploy Done"
